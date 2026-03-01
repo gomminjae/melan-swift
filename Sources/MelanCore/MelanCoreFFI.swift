@@ -526,38 +526,38 @@ private struct FfiConverterData: FfiConverterRustBuffer {
     }
 }
 
-public protocol MelanCoreFfiProtocol: AnyObject {
-    func addPoint(x: Double, y: Double, pressure: Double, timestamp: Double) -> [FfiRenderCommand]
+public protocol MelanEngineProtocol: AnyObject {
+    func addPoint(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand]
 
-    func beginStroke(x: Double, y: Double, pressure: Double, timestamp: Double) -> [FfiRenderCommand]
+    func beginStroke(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand]
 
-    func clearAll() -> [FfiRenderCommand]
+    func clearAll() -> [RenderCommand]
 
-    func endStroke() -> [FfiRenderCommand]
+    func endStroke() -> [RenderCommand]
 
-    func fullRender() -> [FfiRenderCommand]
+    func fullRender() -> [RenderCommand]
 
-    func getState() -> FfiEngineState
+    func getState() -> EngineState
 
     func load(data: Data) throws
 
-    func pan(dx: Double, dy: Double) -> [FfiRenderCommand]
+    func pan(dx: Double, dy: Double) -> [RenderCommand]
 
-    func redo() -> [FfiRenderCommand]
+    func redo() -> [RenderCommand]
 
-    func resetViewport() -> [FfiRenderCommand]
+    func resetViewport() -> [RenderCommand]
 
-    func save(format: FfiFormat) throws -> Data
+    func save(format: SaveFormat) throws -> Data
 
-    func setBrush(config: FfiBrushConfig)
+    func setBrush(config: BrushConfig)
 
-    func undo() -> [FfiRenderCommand]
+    func undo() -> [RenderCommand]
 
-    func zoom(factor: Double, focalX: Double, focalY: Double) -> [FfiRenderCommand]
+    func zoom(factor: Double, focalX: Double, focalY: Double) -> [RenderCommand]
 }
 
-open class MelanCoreFfi:
-    MelanCoreFfiProtocol
+open class MelanEngine:
+    MelanEngineProtocol
 {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
@@ -592,14 +592,14 @@ open class MelanCoreFfi:
         @_documentation(visibility: private)
     #endif
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_melan_ffi_fn_clone_melancoreffi(self.pointer, $0) }
+        return try! rustCall { uniffi_melan_ffi_fn_clone_melanengine(self.pointer, $0) }
     }
 
-    public convenience init(canvasSize: FfiCanvasSize) {
+    public convenience init(canvasSize: CanvasSize) {
         let pointer =
             try! rustCall {
-                uniffi_melan_ffi_fn_constructor_melancoreffi_new(
-                    FfiConverterTypeFfiCanvasSize.lower(canvasSize), $0
+                uniffi_melan_ffi_fn_constructor_melanengine_new(
+                    FfiConverterTypeCanvasSize.lower(canvasSize), $0
                 )
             }
         self.init(unsafeFromRawPointer: pointer)
@@ -610,111 +610,111 @@ open class MelanCoreFfi:
             return
         }
 
-        try! rustCall { uniffi_melan_ffi_fn_free_melancoreffi(pointer, $0) }
+        try! rustCall { uniffi_melan_ffi_fn_free_melanengine(pointer, $0) }
     }
 
-    public static func newA4() -> MelanCoreFfi {
-        return try! FfiConverterTypeMelanCoreFfi.lift(try! rustCall {
-            uniffi_melan_ffi_fn_constructor_melancoreffi_new_a4($0
+    public static func newA4() -> MelanEngine {
+        return try! FfiConverterTypeMelanEngine.lift(try! rustCall {
+            uniffi_melan_ffi_fn_constructor_melanengine_new_a4($0
             )
         })
     }
 
-    open func addPoint(x: Double, y: Double, pressure: Double, timestamp: Double) -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_add_point(self.uniffiClonePointer(),
-                                                              FfiConverterDouble.lower(x),
-                                                              FfiConverterDouble.lower(y),
-                                                              FfiConverterDouble.lower(pressure),
-                                                              FfiConverterDouble.lower(timestamp), $0)
+    open func addPoint(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_add_point(self.uniffiClonePointer(),
+                                                             FfiConverterDouble.lower(x),
+                                                             FfiConverterDouble.lower(y),
+                                                             FfiConverterDouble.lower(pressure),
+                                                             FfiConverterDouble.lower(timestamp), $0)
         })
     }
 
-    open func beginStroke(x: Double, y: Double, pressure: Double, timestamp: Double) -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_begin_stroke(self.uniffiClonePointer(),
-                                                                 FfiConverterDouble.lower(x),
-                                                                 FfiConverterDouble.lower(y),
-                                                                 FfiConverterDouble.lower(pressure),
-                                                                 FfiConverterDouble.lower(timestamp), $0)
+    open func beginStroke(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_begin_stroke(self.uniffiClonePointer(),
+                                                                FfiConverterDouble.lower(x),
+                                                                FfiConverterDouble.lower(y),
+                                                                FfiConverterDouble.lower(pressure),
+                                                                FfiConverterDouble.lower(timestamp), $0)
         })
     }
 
-    open func clearAll() -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_clear_all(self.uniffiClonePointer(), $0)
+    open func clearAll() -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_clear_all(self.uniffiClonePointer(), $0)
         })
     }
 
-    open func endStroke() -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_end_stroke(self.uniffiClonePointer(), $0)
+    open func endStroke() -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_end_stroke(self.uniffiClonePointer(), $0)
         })
     }
 
-    open func fullRender() -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_full_render(self.uniffiClonePointer(), $0)
+    open func fullRender() -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_full_render(self.uniffiClonePointer(), $0)
         })
     }
 
-    open func getState() -> FfiEngineState {
-        return try! FfiConverterTypeFfiEngineState.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_get_state(self.uniffiClonePointer(), $0)
+    open func getState() -> EngineState {
+        return try! FfiConverterTypeEngineState.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_get_state(self.uniffiClonePointer(), $0)
         })
     }
 
     open func load(data: Data) throws { try rustCallWithError(FfiConverterTypeMelanCoreError.lift) {
-        uniffi_melan_ffi_fn_method_melancoreffi_load(self.uniffiClonePointer(),
-                                                     FfiConverterData.lower(data), $0)
+        uniffi_melan_ffi_fn_method_melanengine_load(self.uniffiClonePointer(),
+                                                    FfiConverterData.lower(data), $0)
     }
     }
 
-    open func pan(dx: Double, dy: Double) -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_pan(self.uniffiClonePointer(),
-                                                        FfiConverterDouble.lower(dx),
-                                                        FfiConverterDouble.lower(dy), $0)
+    open func pan(dx: Double, dy: Double) -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_pan(self.uniffiClonePointer(),
+                                                       FfiConverterDouble.lower(dx),
+                                                       FfiConverterDouble.lower(dy), $0)
         })
     }
 
-    open func redo() -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_redo(self.uniffiClonePointer(), $0)
+    open func redo() -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_redo(self.uniffiClonePointer(), $0)
         })
     }
 
-    open func resetViewport() -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_reset_viewport(self.uniffiClonePointer(), $0)
+    open func resetViewport() -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_reset_viewport(self.uniffiClonePointer(), $0)
         })
     }
 
-    open func save(format: FfiFormat) throws -> Data {
+    open func save(format: SaveFormat) throws -> Data {
         return try FfiConverterData.lift(rustCallWithError(FfiConverterTypeMelanCoreError.lift) {
-            uniffi_melan_ffi_fn_method_melancoreffi_save(self.uniffiClonePointer(),
-                                                         FfiConverterTypeFfiFormat.lower(format), $0)
+            uniffi_melan_ffi_fn_method_melanengine_save(self.uniffiClonePointer(),
+                                                        FfiConverterTypeSaveFormat.lower(format), $0)
         })
     }
 
-    open func setBrush(config: FfiBrushConfig) { try! rustCall {
-        uniffi_melan_ffi_fn_method_melancoreffi_set_brush(self.uniffiClonePointer(),
-                                                          FfiConverterTypeFfiBrushConfig.lower(config), $0)
+    open func setBrush(config: BrushConfig) { try! rustCall {
+        uniffi_melan_ffi_fn_method_melanengine_set_brush(self.uniffiClonePointer(),
+                                                         FfiConverterTypeBrushConfig.lower(config), $0)
     }
     }
 
-    open func undo() -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_undo(self.uniffiClonePointer(), $0)
+    open func undo() -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_undo(self.uniffiClonePointer(), $0)
         })
     }
 
-    open func zoom(factor: Double, focalX: Double, focalY: Double) -> [FfiRenderCommand] {
-        return try! FfiConverterSequenceTypeFfiRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melancoreffi_zoom(self.uniffiClonePointer(),
-                                                         FfiConverterDouble.lower(factor),
-                                                         FfiConverterDouble.lower(focalX),
-                                                         FfiConverterDouble.lower(focalY), $0)
+    open func zoom(factor: Double, focalX: Double, focalY: Double) -> [RenderCommand] {
+        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_zoom(self.uniffiClonePointer(),
+                                                        FfiConverterDouble.lower(factor),
+                                                        FfiConverterDouble.lower(focalX),
+                                                        FfiConverterDouble.lower(focalY), $0)
         })
     }
 }
@@ -722,19 +722,19 @@ open class MelanCoreFfi:
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeMelanCoreFfi: FfiConverter {
+public struct FfiConverterTypeMelanEngine: FfiConverter {
     typealias FfiType = UnsafeMutableRawPointer
-    typealias SwiftType = MelanCoreFfi
+    typealias SwiftType = MelanEngine
 
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> MelanCoreFfi {
-        return MelanCoreFfi(unsafeFromRawPointer: pointer)
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> MelanEngine {
+        return MelanEngine(unsafeFromRawPointer: pointer)
     }
 
-    public static func lower(_ value: MelanCoreFfi) -> UnsafeMutableRawPointer {
+    public static func lower(_ value: MelanEngine) -> UnsafeMutableRawPointer {
         return value.uniffiClonePointer()
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MelanCoreFfi {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MelanEngine {
         let v: UInt64 = try readInt(&buf)
         // The Rust code won't compile if a pointer won't fit in a UInt64.
         // We have to go via `UInt` because that's the thing that's the size of a pointer.
@@ -745,7 +745,7 @@ public struct FfiConverterTypeMelanCoreFfi: FfiConverter {
         return try lift(ptr!)
     }
 
-    public static func write(_ value: MelanCoreFfi, into buf: inout [UInt8]) {
+    public static func write(_ value: MelanEngine, into buf: inout [UInt8]) {
         // This fiddling is because `Int` is the thing that's the same size as a pointer.
         // The Rust code won't compile if a pointer won't fit in a `UInt64`.
         writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
@@ -755,33 +755,33 @@ public struct FfiConverterTypeMelanCoreFfi: FfiConverter {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeMelanCoreFfi_lift(_ pointer: UnsafeMutableRawPointer) throws -> MelanCoreFfi {
-    return try FfiConverterTypeMelanCoreFfi.lift(pointer)
+public func FfiConverterTypeMelanEngine_lift(_ pointer: UnsafeMutableRawPointer) throws -> MelanEngine {
+    return try FfiConverterTypeMelanEngine.lift(pointer)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeMelanCoreFfi_lower(_ value: MelanCoreFfi) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeMelanCoreFfi.lower(value)
+public func FfiConverterTypeMelanEngine_lower(_ value: MelanEngine) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeMelanEngine.lower(value)
 }
 
-public struct FfiBrushConfig {
-    public var brushType: FfiBrushType
-    public var color: FfiColor
+public struct BrushConfig {
+    public var brushType: BrushType
+    public var color: Color
     public var baseWidth: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(brushType: FfiBrushType, color: FfiColor, baseWidth: Double) {
+    public init(brushType: BrushType, color: Color, baseWidth: Double) {
         self.brushType = brushType
         self.color = color
         self.baseWidth = baseWidth
     }
 }
 
-extension FfiBrushConfig: Equatable, Hashable {
-    public static func == (lhs: FfiBrushConfig, rhs: FfiBrushConfig) -> Bool {
+extension BrushConfig: Equatable, Hashable {
+    public static func == (lhs: BrushConfig, rhs: BrushConfig) -> Bool {
         if lhs.brushType != rhs.brushType {
             return false
         }
@@ -804,19 +804,19 @@ extension FfiBrushConfig: Equatable, Hashable {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFfiBrushConfig: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiBrushConfig {
+public struct FfiConverterTypeBrushConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BrushConfig {
         return
-            try FfiBrushConfig(
-                brushType: FfiConverterTypeFfiBrushType.read(from: &buf),
-                color: FfiConverterTypeFfiColor.read(from: &buf),
+            try BrushConfig(
+                brushType: FfiConverterTypeBrushType.read(from: &buf),
+                color: FfiConverterTypeColor.read(from: &buf),
                 baseWidth: FfiConverterDouble.read(from: &buf)
             )
     }
 
-    public static func write(_ value: FfiBrushConfig, into buf: inout [UInt8]) {
-        FfiConverterTypeFfiBrushType.write(value.brushType, into: &buf)
-        FfiConverterTypeFfiColor.write(value.color, into: &buf)
+    public static func write(_ value: BrushConfig, into buf: inout [UInt8]) {
+        FfiConverterTypeBrushType.write(value.brushType, into: &buf)
+        FfiConverterTypeColor.write(value.color, into: &buf)
         FfiConverterDouble.write(value.baseWidth, into: &buf)
     }
 }
@@ -824,18 +824,18 @@ public struct FfiConverterTypeFfiBrushConfig: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiBrushConfig_lift(_ buf: RustBuffer) throws -> FfiBrushConfig {
-    return try FfiConverterTypeFfiBrushConfig.lift(buf)
+public func FfiConverterTypeBrushConfig_lift(_ buf: RustBuffer) throws -> BrushConfig {
+    return try FfiConverterTypeBrushConfig.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiBrushConfig_lower(_ value: FfiBrushConfig) -> RustBuffer {
-    return FfiConverterTypeFfiBrushConfig.lower(value)
+public func FfiConverterTypeBrushConfig_lower(_ value: BrushConfig) -> RustBuffer {
+    return FfiConverterTypeBrushConfig.lower(value)
 }
 
-public struct FfiCanvasSize {
+public struct CanvasSize {
     public var width: Double
     public var height: Double
 
@@ -847,8 +847,8 @@ public struct FfiCanvasSize {
     }
 }
 
-extension FfiCanvasSize: Equatable, Hashable {
-    public static func == (lhs: FfiCanvasSize, rhs: FfiCanvasSize) -> Bool {
+extension CanvasSize: Equatable, Hashable {
+    public static func == (lhs: CanvasSize, rhs: CanvasSize) -> Bool {
         if lhs.width != rhs.width {
             return false
         }
@@ -867,16 +867,16 @@ extension FfiCanvasSize: Equatable, Hashable {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFfiCanvasSize: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiCanvasSize {
+public struct FfiConverterTypeCanvasSize: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CanvasSize {
         return
-            try FfiCanvasSize(
+            try CanvasSize(
                 width: FfiConverterDouble.read(from: &buf),
                 height: FfiConverterDouble.read(from: &buf)
             )
     }
 
-    public static func write(_ value: FfiCanvasSize, into buf: inout [UInt8]) {
+    public static func write(_ value: CanvasSize, into buf: inout [UInt8]) {
         FfiConverterDouble.write(value.width, into: &buf)
         FfiConverterDouble.write(value.height, into: &buf)
     }
@@ -885,18 +885,18 @@ public struct FfiConverterTypeFfiCanvasSize: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiCanvasSize_lift(_ buf: RustBuffer) throws -> FfiCanvasSize {
-    return try FfiConverterTypeFfiCanvasSize.lift(buf)
+public func FfiConverterTypeCanvasSize_lift(_ buf: RustBuffer) throws -> CanvasSize {
+    return try FfiConverterTypeCanvasSize.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiCanvasSize_lower(_ value: FfiCanvasSize) -> RustBuffer {
-    return FfiConverterTypeFfiCanvasSize.lower(value)
+public func FfiConverterTypeCanvasSize_lower(_ value: CanvasSize) -> RustBuffer {
+    return FfiConverterTypeCanvasSize.lower(value)
 }
 
-public struct FfiColor {
+public struct Color {
     public var r: Float
     public var g: Float
     public var b: Float
@@ -912,8 +912,8 @@ public struct FfiColor {
     }
 }
 
-extension FfiColor: Equatable, Hashable {
-    public static func == (lhs: FfiColor, rhs: FfiColor) -> Bool {
+extension Color: Equatable, Hashable {
+    public static func == (lhs: Color, rhs: Color) -> Bool {
         if lhs.r != rhs.r {
             return false
         }
@@ -940,10 +940,10 @@ extension FfiColor: Equatable, Hashable {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFfiColor: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiColor {
+public struct FfiConverterTypeColor: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Color {
         return
-            try FfiColor(
+            try Color(
                 r: FfiConverterFloat.read(from: &buf),
                 g: FfiConverterFloat.read(from: &buf),
                 b: FfiConverterFloat.read(from: &buf),
@@ -951,7 +951,7 @@ public struct FfiConverterTypeFfiColor: FfiConverterRustBuffer {
             )
     }
 
-    public static func write(_ value: FfiColor, into buf: inout [UInt8]) {
+    public static func write(_ value: Color, into buf: inout [UInt8]) {
         FfiConverterFloat.write(value.r, into: &buf)
         FfiConverterFloat.write(value.g, into: &buf)
         FfiConverterFloat.write(value.b, into: &buf)
@@ -962,18 +962,18 @@ public struct FfiConverterTypeFfiColor: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiColor_lift(_ buf: RustBuffer) throws -> FfiColor {
-    return try FfiConverterTypeFfiColor.lift(buf)
+public func FfiConverterTypeColor_lift(_ buf: RustBuffer) throws -> Color {
+    return try FfiConverterTypeColor.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiColor_lower(_ value: FfiColor) -> RustBuffer {
-    return FfiConverterTypeFfiColor.lower(value)
+public func FfiConverterTypeColor_lower(_ value: Color) -> RustBuffer {
+    return FfiConverterTypeColor.lower(value)
 }
 
-public struct FfiEngineState {
+public struct EngineState {
     public var strokeCount: UInt32
     public var canUndo: Bool
     public var canRedo: Bool
@@ -995,8 +995,8 @@ public struct FfiEngineState {
     }
 }
 
-extension FfiEngineState: Equatable, Hashable {
-    public static func == (lhs: FfiEngineState, rhs: FfiEngineState) -> Bool {
+extension EngineState: Equatable, Hashable {
+    public static func == (lhs: EngineState, rhs: EngineState) -> Bool {
         if lhs.strokeCount != rhs.strokeCount {
             return false
         }
@@ -1035,10 +1035,10 @@ extension FfiEngineState: Equatable, Hashable {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFfiEngineState: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiEngineState {
+public struct FfiConverterTypeEngineState: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EngineState {
         return
-            try FfiEngineState(
+            try EngineState(
                 strokeCount: FfiConverterUInt32.read(from: &buf),
                 canUndo: FfiConverterBool.read(from: &buf),
                 canRedo: FfiConverterBool.read(from: &buf),
@@ -1049,7 +1049,7 @@ public struct FfiConverterTypeFfiEngineState: FfiConverterRustBuffer {
             )
     }
 
-    public static func write(_ value: FfiEngineState, into buf: inout [UInt8]) {
+    public static func write(_ value: EngineState, into buf: inout [UInt8]) {
         FfiConverterUInt32.write(value.strokeCount, into: &buf)
         FfiConverterBool.write(value.canUndo, into: &buf)
         FfiConverterBool.write(value.canRedo, into: &buf)
@@ -1063,18 +1063,18 @@ public struct FfiConverterTypeFfiEngineState: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiEngineState_lift(_ buf: RustBuffer) throws -> FfiEngineState {
-    return try FfiConverterTypeFfiEngineState.lift(buf)
+public func FfiConverterTypeEngineState_lift(_ buf: RustBuffer) throws -> EngineState {
+    return try FfiConverterTypeEngineState.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiEngineState_lower(_ value: FfiEngineState) -> RustBuffer {
-    return FfiConverterTypeFfiEngineState.lower(value)
+public func FfiConverterTypeEngineState_lower(_ value: EngineState) -> RustBuffer {
+    return FfiConverterTypeEngineState.lower(value)
 }
 
-public struct FfiPathSegment {
+public struct PathSegment {
     public var p0X: Double
     public var p0Y: Double
     public var cp1X: Double
@@ -1102,8 +1102,8 @@ public struct FfiPathSegment {
     }
 }
 
-extension FfiPathSegment: Equatable, Hashable {
-    public static func == (lhs: FfiPathSegment, rhs: FfiPathSegment) -> Bool {
+extension PathSegment: Equatable, Hashable {
+    public static func == (lhs: PathSegment, rhs: PathSegment) -> Bool {
         if lhs.p0X != rhs.p0X {
             return false
         }
@@ -1154,10 +1154,10 @@ extension FfiPathSegment: Equatable, Hashable {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFfiPathSegment: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiPathSegment {
+public struct FfiConverterTypePathSegment: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PathSegment {
         return
-            try FfiPathSegment(
+            try PathSegment(
                 p0X: FfiConverterDouble.read(from: &buf),
                 p0Y: FfiConverterDouble.read(from: &buf),
                 cp1X: FfiConverterDouble.read(from: &buf),
@@ -1171,7 +1171,7 @@ public struct FfiConverterTypeFfiPathSegment: FfiConverterRustBuffer {
             )
     }
 
-    public static func write(_ value: FfiPathSegment, into buf: inout [UInt8]) {
+    public static func write(_ value: PathSegment, into buf: inout [UInt8]) {
         FfiConverterDouble.write(value.p0X, into: &buf)
         FfiConverterDouble.write(value.p0Y, into: &buf)
         FfiConverterDouble.write(value.cp1X, into: &buf)
@@ -1188,21 +1188,21 @@ public struct FfiConverterTypeFfiPathSegment: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiPathSegment_lift(_ buf: RustBuffer) throws -> FfiPathSegment {
-    return try FfiConverterTypeFfiPathSegment.lift(buf)
+public func FfiConverterTypePathSegment_lift(_ buf: RustBuffer) throws -> PathSegment {
+    return try FfiConverterTypePathSegment.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiPathSegment_lower(_ value: FfiPathSegment) -> RustBuffer {
-    return FfiConverterTypeFfiPathSegment.lower(value)
+public func FfiConverterTypePathSegment_lower(_ value: PathSegment) -> RustBuffer {
+    return FfiConverterTypePathSegment.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
-public enum FfiBrushType {
+public enum BrushType {
     case pen
     case highlighter
     case eraser
@@ -1211,10 +1211,10 @@ public enum FfiBrushType {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFfiBrushType: FfiConverterRustBuffer {
-    typealias SwiftType = FfiBrushType
+public struct FfiConverterTypeBrushType: FfiConverterRustBuffer {
+    typealias SwiftType = BrushType
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiBrushType {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BrushType {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         case 1: return .pen
@@ -1227,7 +1227,7 @@ public struct FfiConverterTypeFfiBrushType: FfiConverterRustBuffer {
         }
     }
 
-    public static func write(_ value: FfiBrushType, into buf: inout [UInt8]) {
+    public static func write(_ value: BrushType, into buf: inout [UInt8]) {
         switch value {
         case .pen:
             writeInt(&buf, Int32(1))
@@ -1244,153 +1244,18 @@ public struct FfiConverterTypeFfiBrushType: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiBrushType_lift(_ buf: RustBuffer) throws -> FfiBrushType {
-    return try FfiConverterTypeFfiBrushType.lift(buf)
+public func FfiConverterTypeBrushType_lift(_ buf: RustBuffer) throws -> BrushType {
+    return try FfiConverterTypeBrushType.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFfiBrushType_lower(_ value: FfiBrushType) -> RustBuffer {
-    return FfiConverterTypeFfiBrushType.lower(value)
+public func FfiConverterTypeBrushType_lower(_ value: BrushType) -> RustBuffer {
+    return FfiConverterTypeBrushType.lower(value)
 }
 
-extension FfiBrushType: Equatable, Hashable {}
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum FfiFormat {
-    case json
-    case protobuf
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFfiFormat: FfiConverterRustBuffer {
-    typealias SwiftType = FfiFormat
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiFormat {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        case 1: return .json
-
-        case 2: return .protobuf
-
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: FfiFormat, into buf: inout [UInt8]) {
-        switch value {
-        case .json:
-            writeInt(&buf, Int32(1))
-
-        case .protobuf:
-            writeInt(&buf, Int32(2))
-        }
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFfiFormat_lift(_ buf: RustBuffer) throws -> FfiFormat {
-    return try FfiConverterTypeFfiFormat.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFfiFormat_lower(_ value: FfiFormat) -> RustBuffer {
-    return FfiConverterTypeFfiFormat.lower(value)
-}
-
-extension FfiFormat: Equatable, Hashable {}
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum FfiRenderCommand {
-    case clear(r: Float, g: Float, b: Float, a: Float)
-    case saveState
-    case restoreState
-    case setTransform(scale: Double, translateX: Double, translateY: Double)
-    case drawVariableWidthPath(segments: [FfiPathSegment], r: Float, g: Float, b: Float, a: Float, isEraser: Bool)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFfiRenderCommand: FfiConverterRustBuffer {
-    typealias SwiftType = FfiRenderCommand
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiRenderCommand {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        case 1: return try .clear(r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf))
-
-        case 2: return .saveState
-
-        case 3: return .restoreState
-
-        case 4: return try .setTransform(scale: FfiConverterDouble.read(from: &buf), translateX: FfiConverterDouble.read(from: &buf), translateY: FfiConverterDouble.read(from: &buf))
-
-        case 5: return try .drawVariableWidthPath(segments: FfiConverterSequenceTypeFfiPathSegment.read(from: &buf), r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf), isEraser: FfiConverterBool.read(from: &buf))
-
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: FfiRenderCommand, into buf: inout [UInt8]) {
-        switch value {
-        case let .clear(r, g, b, a):
-            writeInt(&buf, Int32(1))
-            FfiConverterFloat.write(r, into: &buf)
-            FfiConverterFloat.write(g, into: &buf)
-            FfiConverterFloat.write(b, into: &buf)
-            FfiConverterFloat.write(a, into: &buf)
-
-        case .saveState:
-            writeInt(&buf, Int32(2))
-
-        case .restoreState:
-            writeInt(&buf, Int32(3))
-
-        case let .setTransform(scale, translateX, translateY):
-            writeInt(&buf, Int32(4))
-            FfiConverterDouble.write(scale, into: &buf)
-            FfiConverterDouble.write(translateX, into: &buf)
-            FfiConverterDouble.write(translateY, into: &buf)
-
-        case let .drawVariableWidthPath(segments, r, g, b, a, isEraser):
-            writeInt(&buf, Int32(5))
-            FfiConverterSequenceTypeFfiPathSegment.write(segments, into: &buf)
-            FfiConverterFloat.write(r, into: &buf)
-            FfiConverterFloat.write(g, into: &buf)
-            FfiConverterFloat.write(b, into: &buf)
-            FfiConverterFloat.write(a, into: &buf)
-            FfiConverterBool.write(isEraser, into: &buf)
-        }
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFfiRenderCommand_lift(_ buf: RustBuffer) throws -> FfiRenderCommand {
-    return try FfiConverterTypeFfiRenderCommand.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFfiRenderCommand_lower(_ value: FfiRenderCommand) -> RustBuffer {
-    return FfiConverterTypeFfiRenderCommand.lower(value)
-}
-
-extension FfiRenderCommand: Equatable, Hashable {}
+extension BrushType: Equatable, Hashable {}
 
 public enum MelanCoreError {
     case FormatError(msg: String
@@ -1431,26 +1296,161 @@ extension MelanCoreError: Foundation.LocalizedError {
     }
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum RenderCommand {
+    case clear(r: Float, g: Float, b: Float, a: Float)
+    case saveState
+    case restoreState
+    case setTransform(scale: Double, translateX: Double, translateY: Double)
+    case drawVariableWidthPath(segments: [PathSegment], r: Float, g: Float, b: Float, a: Float, isEraser: Bool)
+}
+
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeFfiPathSegment: FfiConverterRustBuffer {
-    typealias SwiftType = [FfiPathSegment]
+public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
+    typealias SwiftType = RenderCommand
 
-    public static func write(_ value: [FfiPathSegment], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeFfiPathSegment.write(item, into: &buf)
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RenderCommand {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        case 1: return try .clear(r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf))
+
+        case 2: return .saveState
+
+        case 3: return .restoreState
+
+        case 4: return try .setTransform(scale: FfiConverterDouble.read(from: &buf), translateX: FfiConverterDouble.read(from: &buf), translateY: FfiConverterDouble.read(from: &buf))
+
+        case 5: return try .drawVariableWidthPath(segments: FfiConverterSequenceTypePathSegment.read(from: &buf), r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf), isEraser: FfiConverterBool.read(from: &buf))
+
+        default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiPathSegment] {
+    public static func write(_ value: RenderCommand, into buf: inout [UInt8]) {
+        switch value {
+        case let .clear(r, g, b, a):
+            writeInt(&buf, Int32(1))
+            FfiConverterFloat.write(r, into: &buf)
+            FfiConverterFloat.write(g, into: &buf)
+            FfiConverterFloat.write(b, into: &buf)
+            FfiConverterFloat.write(a, into: &buf)
+
+        case .saveState:
+            writeInt(&buf, Int32(2))
+
+        case .restoreState:
+            writeInt(&buf, Int32(3))
+
+        case let .setTransform(scale, translateX, translateY):
+            writeInt(&buf, Int32(4))
+            FfiConverterDouble.write(scale, into: &buf)
+            FfiConverterDouble.write(translateX, into: &buf)
+            FfiConverterDouble.write(translateY, into: &buf)
+
+        case let .drawVariableWidthPath(segments, r, g, b, a, isEraser):
+            writeInt(&buf, Int32(5))
+            FfiConverterSequenceTypePathSegment.write(segments, into: &buf)
+            FfiConverterFloat.write(r, into: &buf)
+            FfiConverterFloat.write(g, into: &buf)
+            FfiConverterFloat.write(b, into: &buf)
+            FfiConverterFloat.write(a, into: &buf)
+            FfiConverterBool.write(isEraser, into: &buf)
+        }
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRenderCommand_lift(_ buf: RustBuffer) throws -> RenderCommand {
+    return try FfiConverterTypeRenderCommand.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRenderCommand_lower(_ value: RenderCommand) -> RustBuffer {
+    return FfiConverterTypeRenderCommand.lower(value)
+}
+
+extension RenderCommand: Equatable, Hashable {}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum SaveFormat {
+    case json
+    case protobuf
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSaveFormat: FfiConverterRustBuffer {
+    typealias SwiftType = SaveFormat
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SaveFormat {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        case 1: return .json
+
+        case 2: return .protobuf
+
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SaveFormat, into buf: inout [UInt8]) {
+        switch value {
+        case .json:
+            writeInt(&buf, Int32(1))
+
+        case .protobuf:
+            writeInt(&buf, Int32(2))
+        }
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSaveFormat_lift(_ buf: RustBuffer) throws -> SaveFormat {
+    return try FfiConverterTypeSaveFormat.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSaveFormat_lower(_ value: SaveFormat) -> RustBuffer {
+    return FfiConverterTypeSaveFormat.lower(value)
+}
+
+extension SaveFormat: Equatable, Hashable {}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+private struct FfiConverterSequenceTypePathSegment: FfiConverterRustBuffer {
+    typealias SwiftType = [PathSegment]
+
+    public static func write(_ value: [PathSegment], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePathSegment.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PathSegment] {
         let len: Int32 = try readInt(&buf)
-        var seq = [FfiPathSegment]()
+        var seq = [PathSegment]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeFfiPathSegment.read(from: &buf))
+            try seq.append(FfiConverterTypePathSegment.read(from: &buf))
         }
         return seq
     }
@@ -1459,23 +1459,23 @@ private struct FfiConverterSequenceTypeFfiPathSegment: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeFfiRenderCommand: FfiConverterRustBuffer {
-    typealias SwiftType = [FfiRenderCommand]
+private struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
+    typealias SwiftType = [RenderCommand]
 
-    public static func write(_ value: [FfiRenderCommand], into buf: inout [UInt8]) {
+    public static func write(_ value: [RenderCommand], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeFfiRenderCommand.write(item, into: &buf)
+            FfiConverterTypeRenderCommand.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiRenderCommand] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RenderCommand] {
         let len: Int32 = try readInt(&buf)
-        var seq = [FfiRenderCommand]()
+        var seq = [RenderCommand]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeFfiRenderCommand.read(from: &buf))
+            try seq.append(FfiConverterTypeRenderCommand.read(from: &buf))
         }
         return seq
     }
@@ -1497,52 +1497,52 @@ private var initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_add_point() != 42137 {
+    if uniffi_melan_ffi_checksum_method_melanengine_add_point() != 21848 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_begin_stroke() != 64787 {
+    if uniffi_melan_ffi_checksum_method_melanengine_begin_stroke() != 21472 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_clear_all() != 58225 {
+    if uniffi_melan_ffi_checksum_method_melanengine_clear_all() != 12050 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_end_stroke() != 1923 {
+    if uniffi_melan_ffi_checksum_method_melanengine_end_stroke() != 59850 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_full_render() != 38161 {
+    if uniffi_melan_ffi_checksum_method_melanengine_full_render() != 32801 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_get_state() != 42494 {
+    if uniffi_melan_ffi_checksum_method_melanengine_get_state() != 8749 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_load() != 43754 {
+    if uniffi_melan_ffi_checksum_method_melanengine_load() != 30579 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_pan() != 15438 {
+    if uniffi_melan_ffi_checksum_method_melanengine_pan() != 8129 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_redo() != 22551 {
+    if uniffi_melan_ffi_checksum_method_melanengine_redo() != 62665 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_reset_viewport() != 29053 {
+    if uniffi_melan_ffi_checksum_method_melanengine_reset_viewport() != 44645 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_save() != 50456 {
+    if uniffi_melan_ffi_checksum_method_melanengine_save() != 1130 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_set_brush() != 58893 {
+    if uniffi_melan_ffi_checksum_method_melanengine_set_brush() != 59865 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_undo() != 1050 {
+    if uniffi_melan_ffi_checksum_method_melanengine_undo() != 51935 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melancoreffi_zoom() != 12782 {
+    if uniffi_melan_ffi_checksum_method_melanengine_zoom() != 47544 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_constructor_melancoreffi_new() != 15993 {
+    if uniffi_melan_ffi_checksum_constructor_melanengine_new() != 61487 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_constructor_melancoreffi_new_a4() != 65233 {
+    if uniffi_melan_ffi_checksum_constructor_melanengine_new_a4() != 39618 {
         return InitializationResult.apiChecksumMismatch
     }
 
