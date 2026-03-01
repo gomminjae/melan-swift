@@ -1,0 +1,4 @@
+module MelanCoreFFIFFI {
+    header "MelanCoreFFIFFI.h"
+    export *
+}
