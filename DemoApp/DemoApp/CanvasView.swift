@@ -1,15 +1,30 @@
 import UIKit
-import MelanCore
+import MelanSwift
 
 final class CanvasView: UIView {
 
-    let engine = MelanEngine.newA4()
+    let canvas = MelanCanvas.a4()
 
-    /// ViewController가 툴바 상태를 갱신할 수 있도록 콜백 제공
-    var onStateChanged: (() -> Void)?
+    /// canvas 메서드 호출 시 동기적으로 캡처되는 렌더 커맨드
+    private var _lastCommands: [RenderCommand] = []
 
-    private var bufferImage: UIImage?
+    // committed: 완성된 획들의 래스터 스냅샷 (fullRender)
+    // live: 진행 중인 획의 세그먼트 (addPoint에서 누적)
+    private var committedImage: UIImage?
+    private var liveSegments: [PathSegment] = []
+    private var liveColor: (r: Float, g: Float, b: Float, a: Float) = (0, 0, 0, 1)
+
+    private var displayImage: UIImage?
     private(set) var isStrokeActive = false
+
+    // 올가미 모드
+    var isLassoMode = false
+    private var isLassoDragging = false
+
+    // 지우개 커서 피드백
+    var isEraserMode = false
+    var eraserRadius: CGFloat = 15
+    private var eraserPosition: CGPoint?
 
     // MARK: - Init
 
@@ -17,6 +32,10 @@ final class CanvasView: UIView {
         super.init(frame: frame)
         backgroundColor = .white
         isMultipleTouchEnabled = false
+
+        canvas.onRenderCommands = { [weak self] commands in
+            self?._lastCommands = commands
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -30,35 +49,17 @@ final class CanvasView: UIView {
         refreshBuffer()
     }
 
-    // MARK: - Drawing
-
     override func draw(_ rect: CGRect) {
-        bufferImage?.draw(in: bounds)
+        displayImage?.draw(in: bounds)
     }
 
-    // MARK: - Public
+    // MARK: - Public (ViewController에서 호출)
 
-    /// 렌더 커맨드 실행. Clear 포함 여부에 따라 전체/증분 렌더링 결정.
-    func applyCommands(_ commands: [RenderCommand]) {
-        guard !commands.isEmpty else { return }
-
-        let isFull = commands.contains {
-            if case .clear = $0 { return true }
-            return false
-        }
-
-        if isFull {
-            renderFull(commands)
-        } else {
-            renderIncremental(commands)
-        }
-
-        setNeedsDisplay()
-    }
-
-    /// 엔진의 fullRender()로 버퍼를 갱신한다.
+    /// 완성된 획 전체를 다시 렌더하고 화면에 반영한다.
+    /// undo / redo / clear / zoom / pan 후 호출.
     func refreshBuffer() {
-        renderFull(engine.fullRender())
+        renderCommitted()
+        displayImage = committedImage
         setNeedsDisplay()
     }
 
@@ -66,49 +67,147 @@ final class CanvasView: UIView {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
-        isStrokeActive = true
         let loc = touch.location(in: self)
-        let commands = engine.beginStroke(
+
+        if isLassoMode {
+            handleLassoBegan(at: loc)
+            return
+        }
+
+        isStrokeActive = true
+        renderCommitted()
+        liveSegments = []
+
+        if isEraserMode {
+            eraserPosition = loc
+        }
+
+        canvas.beginStroke(
             x: Double(loc.x), y: Double(loc.y),
             pressure: pressureValue(for: touch),
             timestamp: touch.timestamp
         )
-        applyCommands(commands)
+        compositeAndDisplay()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, isStrokeActive else { return }
+        guard let touch = touches.first else { return }
+        let loc = touch.location(in: self)
 
-        // coalescedTouches로 보다 부드러운 입력
+        if isLassoMode {
+            guard isStrokeActive else { return }
+            handleLassoMoved(at: loc)
+            return
+        }
+
+        guard isStrokeActive else { return }
         let allTouches = event?.coalescedTouches(for: touch) ?? [touch]
         for t in allTouches {
-            let loc = t.location(in: self)
-            let commands = engine.addPoint(
-                x: Double(loc.x), y: Double(loc.y),
+            let tLoc = t.location(in: self)
+            canvas.addPoint(
+                x: Double(tLoc.x), y: Double(tLoc.y),
                 pressure: pressureValue(for: t),
                 timestamp: t.timestamp
             )
-            applyCommands(commands)
+            if isEraserMode && !_lastCommands.isEmpty {
+                // Partial eraser: engine returns full_render → re-render committed
+                renderCommitted()
+            } else {
+                accumulateLive(from: _lastCommands)
+            }
         }
+
+        if isEraserMode {
+            eraserPosition = loc
+        }
+
+        compositeAndDisplay()
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if isLassoMode {
+            guard isStrokeActive else { return }
+            handleLassoEnded()
+            return
+        }
+
         guard isStrokeActive else { return }
         isStrokeActive = false
-        applyCommands(engine.endStroke())
-        onStateChanged?()
+        eraserPosition = nil
+        canvas.endStroke()
+        liveSegments = []
+        refreshBuffer()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if isLassoMode {
+            guard isStrokeActive else { return }
+            handleLassoEnded()
+            return
+        }
+
         guard isStrokeActive else { return }
         isStrokeActive = false
-        applyCommands(engine.endStroke())
-        onStateChanged?()
+        eraserPosition = nil
+        canvas.endStroke()
+        liveSegments = []
+        refreshBuffer()
     }
 
-    // MARK: - Rendering (Offscreen Buffer)
+    // MARK: - Lasso Touch
 
-    private func renderFull(_ commands: [RenderCommand]) {
+    private func handleLassoBegan(at loc: CGPoint) {
+        isStrokeActive = true
+
+        if canvas.hasSelection {
+            let selRect = selectionScreenRect()
+            if selRect.insetBy(dx: -20, dy: -20).contains(loc) {
+                isLassoDragging = true
+                canvas.beginLassoDrag(x: Double(loc.x), y: Double(loc.y))
+                refreshBuffer()
+            } else {
+                canvas.cancelLasso()
+                canvas.beginLasso(x: Double(loc.x), y: Double(loc.y))
+                refreshBuffer()
+            }
+        } else {
+            canvas.beginLasso(x: Double(loc.x), y: Double(loc.y))
+            refreshBuffer()
+        }
+    }
+
+    private func handleLassoMoved(at loc: CGPoint) {
+        if isLassoDragging {
+            canvas.updateLassoDrag(x: Double(loc.x), y: Double(loc.y))
+        } else {
+            canvas.addLassoPoint(x: Double(loc.x), y: Double(loc.y))
+        }
+        refreshBuffer()
+    }
+
+    private func handleLassoEnded() {
+        isStrokeActive = false
+        if isLassoDragging {
+            isLassoDragging = false
+            canvas.endLassoDrag()
+        } else {
+            canvas.endLasso()
+        }
+        refreshBuffer()
+    }
+
+    private func selectionScreenRect() -> CGRect {
+        let s = canvas.state
+        let minX = s.selectionMinX * s.scale + s.offsetX
+        let minY = s.selectionMinY * s.scale + s.offsetY
+        let maxX = s.selectionMaxX * s.scale + s.offsetX
+        let maxY = s.selectionMaxY * s.scale + s.offsetY
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    // MARK: - Committed Render (완성된 획 전체)
+
+    private func renderCommitted() {
         let size = bounds.size
         guard size.width > 0, size.height > 0 else { return }
 
@@ -116,14 +215,17 @@ final class CanvasView: UIView {
         defer { UIGraphicsEndImageContext() }
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
 
-        for cmd in commands {
+        canvas.fullRender()
+        for cmd in _lastCommands {
             execute(cmd, in: ctx)
         }
 
-        bufferImage = UIGraphicsGetImageFromCurrentImageContext()
+        committedImage = UIGraphicsGetImageFromCurrentImageContext()
     }
 
-    private func renderIncremental(_ commands: [RenderCommand]) {
+    // MARK: - Composite (committed + live → display)
+
+    private func compositeAndDisplay() {
         let size = bounds.size
         guard size.width > 0, size.height > 0 else { return }
 
@@ -131,14 +233,100 @@ final class CanvasView: UIView {
         defer { UIGraphicsEndImageContext() }
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
 
-        // 기존 버퍼를 먼저 그린 뒤 증분 커맨드를 덧그림
-        bufferImage?.draw(in: CGRect(origin: .zero, size: size))
+        // 1) 완성된 획 배경
+        committedImage?.draw(in: CGRect(origin: .zero, size: size))
 
-        for cmd in commands {
-            execute(cmd, in: ctx)
+        // 2) 진행 중 획을 뷰포트 변환 적용해서 덧그림
+        if !liveSegments.isEmpty {
+            let state = canvas.state
+
+            ctx.saveGState()
+            ctx.concatenate(CGAffineTransform(
+                a: CGFloat(state.scale), b: 0,
+                c: 0, d: CGFloat(state.scale),
+                tx: CGFloat(state.offsetX), ty: CGFloat(state.offsetY)
+            ))
+
+            let useLiveTransparency = liveColor.a < 1.0
+
+            if useLiveTransparency {
+                ctx.setAlpha(CGFloat(liveColor.a))
+                ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+                ctx.setStrokeColor(red: CGFloat(liveColor.r), green: CGFloat(liveColor.g),
+                                   blue: CGFloat(liveColor.b), alpha: 1.0)
+            } else {
+                ctx.setStrokeColor(red: CGFloat(liveColor.r), green: CGFloat(liveColor.g),
+                                   blue: CGFloat(liveColor.b), alpha: CGFloat(liveColor.a))
+            }
+
+            ctx.setLineCap(.round)
+            ctx.setLineJoin(.round)
+
+            for seg in liveSegments {
+                let width = (seg.startWidth + seg.endWidth) / 2.0
+                ctx.setLineWidth(CGFloat(max(width, 0.5)))
+                ctx.move(to: CGPoint(x: seg.p0X, y: seg.p0Y))
+                ctx.addCurve(
+                    to: CGPoint(x: seg.p3X, y: seg.p3Y),
+                    control1: CGPoint(x: seg.cp1X, y: seg.cp1Y),
+                    control2: CGPoint(x: seg.cp2X, y: seg.cp2Y)
+                )
+                ctx.strokePath()
+            }
+
+            if useLiveTransparency {
+                ctx.endTransparencyLayer()
+            }
+
+            ctx.restoreGState()
         }
 
-        bufferImage = UIGraphicsGetImageFromCurrentImageContext()
+        // 3) 지우개 커서 오버레이
+        if let pos = eraserPosition {
+            let cursorRect = CGRect(
+                x: pos.x - eraserRadius,
+                y: pos.y - eraserRadius,
+                width: eraserRadius * 2,
+                height: eraserRadius * 2
+            )
+            ctx.setFillColor(UIColor.gray.withAlphaComponent(0.15).cgColor)
+            ctx.fillEllipse(in: cursorRect)
+            ctx.setStrokeColor(UIColor.gray.withAlphaComponent(0.5).cgColor)
+            ctx.setLineWidth(1.0)
+            ctx.strokeEllipse(in: cursorRect)
+        }
+
+        displayImage = UIGraphicsGetImageFromCurrentImageContext()
+        setNeedsDisplay()
+    }
+
+    // MARK: - Live Segment 누적
+    //
+    // 엔진 패턴:
+    //   n=2 → 1 segment 반환 (직선)        → append
+    //   n≥3 → 2 segments 반환 (교체 + 새것) → replace last + append
+    // 이렇게 하면 교체된 Catmull-Rom 곡선이 항상 최신 상태로 유지된다.
+
+    private func accumulateLive(from commands: [RenderCommand]) {
+        for cmd in commands {
+            guard case .drawVariableWidthPath(let segments, let r, let g, let b, let a, _) = cmd else {
+                continue
+            }
+            liveColor = (r, g, b, a)
+
+            if segments.count == 1 {
+                liveSegments.append(segments[0])
+            } else if segments.count >= 2 {
+                // segments[0] = 이전 마지막 세그먼트의 교체본 (Catmull-Rom)
+                // segments[1] = 새로운 trailing 세그먼트
+                if !liveSegments.isEmpty {
+                    liveSegments[liveSegments.count - 1] = segments[0]
+                } else {
+                    liveSegments.append(segments[0])
+                }
+                liveSegments.append(segments[1])
+            }
+        }
     }
 
     // MARK: - RenderCommand → CGContext
@@ -157,27 +345,36 @@ final class CanvasView: UIView {
             ctx.restoreGState()
 
         case .setTransform(let scale, let translateX, let translateY):
-            let t = CGAffineTransform(
+            ctx.concatenate(CGAffineTransform(
                 a: CGFloat(scale), b: 0,
                 c: 0, d: CGFloat(scale),
                 tx: CGFloat(translateX), ty: CGFloat(translateY)
-            )
-            ctx.concatenate(t)
+            ))
 
         case .drawVariableWidthPath(let segments, let r, let g, let b, let a, let isEraser):
             if isEraser {
                 ctx.setBlendMode(.clear)
             }
 
-            ctx.setStrokeColor(red: CGFloat(r), green: CGFloat(g),
-                               blue: CGFloat(b), alpha: CGFloat(a))
+            let useTransparencyLayer = a < 1.0 && !isEraser
+
+            if useTransparencyLayer {
+                ctx.saveGState()
+                ctx.setAlpha(CGFloat(a))
+                ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+                ctx.setStrokeColor(red: CGFloat(r), green: CGFloat(g),
+                                   blue: CGFloat(b), alpha: 1.0)
+            } else {
+                ctx.setStrokeColor(red: CGFloat(r), green: CGFloat(g),
+                                   blue: CGFloat(b), alpha: CGFloat(a))
+            }
+
             ctx.setLineCap(.round)
             ctx.setLineJoin(.round)
 
             for seg in segments {
                 let width = (seg.startWidth + seg.endWidth) / 2.0
                 ctx.setLineWidth(CGFloat(max(width, 0.5)))
-
                 ctx.move(to: CGPoint(x: seg.p0X, y: seg.p0Y))
                 ctx.addCurve(
                     to: CGPoint(x: seg.p3X, y: seg.p3Y),
@@ -187,9 +384,37 @@ final class CanvasView: UIView {
                 ctx.strokePath()
             }
 
+            if useTransparencyLayer {
+                ctx.endTransparencyLayer()
+                ctx.restoreGState()
+            }
+
             if isEraser {
                 ctx.setBlendMode(.normal)
             }
+
+        case .drawClosedPath(let points, let r, let g, let b, let a, let lineWidth):
+            guard points.count >= 2 else { break }
+            ctx.setStrokeColor(red: CGFloat(r), green: CGFloat(g),
+                               blue: CGFloat(b), alpha: CGFloat(a))
+            ctx.setLineWidth(CGFloat(lineWidth))
+            ctx.setLineDash(phase: 0, lengths: [5, 3])
+            ctx.move(to: CGPoint(x: points[0].x, y: points[0].y))
+            for i in 1..<points.count {
+                ctx.addLine(to: CGPoint(x: points[i].x, y: points[i].y))
+            }
+            ctx.closePath()
+            ctx.strokePath()
+            ctx.setLineDash(phase: 0, lengths: [])
+
+        case .drawRect(let minX, let minY, let maxX, let maxY, let r, let g, let b, let a, let lineWidth):
+            let rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+            ctx.setStrokeColor(red: CGFloat(r), green: CGFloat(g),
+                               blue: CGFloat(b), alpha: CGFloat(a))
+            ctx.setLineWidth(CGFloat(lineWidth))
+            ctx.setLineDash(phase: 0, lengths: [6, 4])
+            ctx.stroke(rect)
+            ctx.setLineDash(phase: 0, lengths: [])
         }
     }
 

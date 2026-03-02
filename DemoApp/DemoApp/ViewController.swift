@@ -1,5 +1,5 @@
 import UIKit
-import MelanCore
+import MelanSwift
 
 final class ViewController: UIViewController {
 
@@ -10,11 +10,17 @@ final class ViewController: UIViewController {
     private var currentBrushType: BrushType = .pen
     private var currentColor = Color(r: 0, g: 0, b: 0, a: 1)
     private var currentWidth: Double = 2.0
+    private var currentEraserMode: EraserMode = .partial
+
+    private var isLassoActive = false
 
     // 하이라이트용 참조
     private var penButton: UIBarButtonItem!
     private var highlighterButton: UIBarButtonItem!
     private var eraserButton: UIBarButtonItem!
+    private var lassoButton: UIBarButtonItem!
+    private var lassoDeleteButton: UIBarButtonItem!
+    private var lassoCopyButton: UIBarButtonItem!
     private var undoButton: UIBarButtonItem!
     private var redoButton: UIBarButtonItem!
 
@@ -51,7 +57,7 @@ final class ViewController: UIViewController {
             toolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
-        canvasView.onStateChanged = { [weak self] in
+        canvasView.canvas.onStateChanged = { [weak self] in
             self?.updateToolbarState()
         }
     }
@@ -62,23 +68,38 @@ final class ViewController: UIViewController {
         penButton = UIBarButtonItem(
             image: UIImage(systemName: "pencil"),
             style: .plain, target: self, action: #selector(penTapped))
+        penButton.menu = makeWidthMenu(for: .pen)
+        penButton.preferredMenuElementOrder = .fixed
+
         highlighterButton = UIBarButtonItem(
             image: UIImage(systemName: "highlighter"),
             style: .plain, target: self, action: #selector(highlighterTapped))
+        highlighterButton.menu = makeWidthMenu(for: .highlighter)
+        highlighterButton.preferredMenuElementOrder = .fixed
+
         eraserButton = UIBarButtonItem(
             image: UIImage(systemName: "eraser"),
             style: .plain, target: self, action: #selector(eraserTapped))
+        eraserButton.menu = makeEraserMenu()
+        eraserButton.preferredMenuElementOrder = .fixed
+
+        lassoButton = UIBarButtonItem(
+            image: UIImage(systemName: "lasso"),
+            style: .plain, target: self, action: #selector(lassoTapped))
+
+        lassoDeleteButton = UIBarButtonItem(
+            image: UIImage(systemName: "trash.circle"),
+            style: .plain, target: self, action: #selector(lassoDeleteTapped))
+        lassoDeleteButton.tintColor = .systemRed
+
+        lassoCopyButton = UIBarButtonItem(
+            image: UIImage(systemName: "plus.square.on.square"),
+            style: .plain, target: self, action: #selector(lassoCopyTapped))
+        lassoCopyButton.tintColor = .systemGreen
 
         let blackBtn = colorButton(.black, action: #selector(blackTapped))
         let redBtn = colorButton(.systemRed, action: #selector(redTapped))
         let blueBtn = colorButton(.systemBlue, action: #selector(blueTapped))
-
-        let thinBtn = UIBarButtonItem(
-            image: UIImage(systemName: "minus.circle"),
-            style: .plain, target: self, action: #selector(thinTapped))
-        let thickBtn = UIBarButtonItem(
-            image: UIImage(systemName: "plus.circle"),
-            style: .plain, target: self, action: #selector(thickTapped))
 
         undoButton = UIBarButtonItem(
             image: UIImage(systemName: "arrow.uturn.backward"),
@@ -100,16 +121,104 @@ final class ViewController: UIViewController {
         }
 
         toolbar.items = [
-            penButton, fix(), highlighterButton, fix(), eraserButton,
+            penButton, fix(), highlighterButton, fix(), eraserButton, fix(), lassoButton,
             flex(),
             blackBtn, fix(), redBtn, fix(), blueBtn,
             flex(),
-            thinBtn, fix(), thickBtn,
+            lassoDeleteButton, fix(), lassoCopyButton,
             flex(),
             undoButton, fix(), redoButton,
             flex(),
             clearBtn,
         ]
+    }
+
+    private func makeWidthMenu(for brushType: BrushType) -> UIMenu {
+        let presets: [(String, Double)] = [
+            ("가늘게 (1pt)", 1.0),
+            ("보통 (2pt)", 2.0),
+            ("굵게 (4pt)", 4.0),
+            ("매우 굵게 (8pt)", 8.0),
+        ]
+
+        let actions = presets.map { (title, width) in
+            UIAction(
+                title: title,
+                state: currentWidth == width ? .on : .off
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.currentWidth = width
+                self.currentBrushType = brushType
+                self.applyBrush()
+                self.updateToolbarState()
+                self.refreshWidthMenus()
+            }
+        }
+
+        return UIMenu(title: "굵기 선택", children: actions)
+    }
+
+    private func makeEraserMenu() -> UIMenu {
+        let modeActions = [
+            UIAction(
+                title: "부분 지우개",
+                image: UIImage(systemName: "eraser.line.dashed"),
+                state: currentEraserMode == .partial ? .on : .off
+            ) { [weak self] _ in
+                self?.currentEraserMode = .partial
+                self?.currentBrushType = .eraser
+                self?.isLassoActive = false
+                self?.canvasView.isLassoMode = false
+                self?.applyBrush()
+                self?.updateToolbarState()
+                self?.refreshWidthMenus()
+            },
+            UIAction(
+                title: "획 지우개",
+                image: UIImage(systemName: "eraser"),
+                state: currentEraserMode == .stroke ? .on : .off
+            ) { [weak self] _ in
+                self?.currentEraserMode = .stroke
+                self?.currentBrushType = .eraser
+                self?.isLassoActive = false
+                self?.canvasView.isLassoMode = false
+                self?.applyBrush()
+                self?.updateToolbarState()
+                self?.refreshWidthMenus()
+            },
+        ]
+        let modeMenu = UIMenu(title: "지우개 모드", options: .displayInline, children: modeActions)
+
+        let widthPresets: [(String, Double)] = [
+            ("가늘게 (1pt)", 1.0),
+            ("보통 (2pt)", 2.0),
+            ("굵게 (4pt)", 4.0),
+            ("매우 굵게 (8pt)", 8.0),
+        ]
+        let widthActions = widthPresets.map { (title, width) in
+            UIAction(
+                title: title,
+                state: currentWidth == width ? .on : .off
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.currentWidth = width
+                self.currentBrushType = .eraser
+                self.isLassoActive = false
+                self.canvasView.isLassoMode = false
+                self.applyBrush()
+                self.updateToolbarState()
+                self.refreshWidthMenus()
+            }
+        }
+        let widthMenu = UIMenu(title: "굵기 선택", options: .displayInline, children: widthActions)
+
+        return UIMenu(children: [modeMenu, widthMenu])
+    }
+
+    private func refreshWidthMenus() {
+        penButton.menu = makeWidthMenu(for: .pen)
+        highlighterButton.menu = makeWidthMenu(for: .highlighter)
+        eraserButton.menu = makeEraserMenu()
     }
 
     private func colorButton(_ color: UIColor, action: Selector) -> UIBarButtonItem {
@@ -138,20 +247,43 @@ final class ViewController: UIViewController {
 
     @objc private func penTapped() {
         currentBrushType = .pen
+        isLassoActive = false
+        canvasView.isLassoMode = false
         applyBrush()
         updateToolbarState()
     }
 
     @objc private func highlighterTapped() {
         currentBrushType = .highlighter
+        isLassoActive = false
+        canvasView.isLassoMode = false
         applyBrush()
         updateToolbarState()
     }
 
     @objc private func eraserTapped() {
         currentBrushType = .eraser
+        isLassoActive = false
+        canvasView.isLassoMode = false
         applyBrush()
         updateToolbarState()
+    }
+
+    @objc private func lassoTapped() {
+        isLassoActive = true
+        canvasView.isLassoMode = true
+        canvasView.isEraserMode = false
+        updateToolbarState()
+    }
+
+    @objc private func lassoDeleteTapped() {
+        canvasView.canvas.lassoDelete()
+        canvasView.refreshBuffer()
+    }
+
+    @objc private func lassoCopyTapped() {
+        canvasView.canvas.lassoDuplicate()
+        canvasView.refreshBuffer()
     }
 
     // MARK: - Color Actions
@@ -171,33 +303,21 @@ final class ViewController: UIViewController {
         applyBrush()
     }
 
-    // MARK: - Width Actions
-
-    @objc private func thinTapped() {
-        currentWidth = max(1.0, currentWidth - 1.0)
-        applyBrush()
-    }
-
-    @objc private func thickTapped() {
-        currentWidth = min(20.0, currentWidth + 1.0)
-        applyBrush()
-    }
-
     // MARK: - Edit Actions
 
     @objc private func undoTapped() {
-        canvasView.applyCommands(canvasView.engine.undo())
-        updateToolbarState()
+        canvasView.canvas.undo()
+        canvasView.refreshBuffer()
     }
 
     @objc private func redoTapped() {
-        canvasView.applyCommands(canvasView.engine.redo())
-        updateToolbarState()
+        canvasView.canvas.redo()
+        canvasView.refreshBuffer()
     }
 
     @objc private func clearTapped() {
-        canvasView.applyCommands(canvasView.engine.clearAll())
-        updateToolbarState()
+        canvasView.canvas.clearAll()
+        canvasView.refreshBuffer()
     }
 
     // MARK: - Gesture Handlers
@@ -205,29 +325,35 @@ final class ViewController: UIViewController {
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
         guard gesture.state == .changed else { return }
         let center = gesture.location(in: canvasView)
-        let commands = canvasView.engine.zoom(
+        canvasView.canvas.zoom(
             factor: Double(gesture.scale),
             focalX: Double(center.x),
             focalY: Double(center.y)
         )
-        canvasView.applyCommands(commands)
+        canvasView.refreshBuffer()
         gesture.scale = 1.0
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
         guard gesture.state == .changed else { return }
         let translation = gesture.translation(in: canvasView)
-        let commands = canvasView.engine.pan(
+        canvasView.canvas.pan(
             dx: Double(translation.x),
             dy: Double(translation.y)
         )
-        canvasView.applyCommands(commands)
+        canvasView.refreshBuffer()
         gesture.setTranslation(.zero, in: canvasView)
     }
 
     // MARK: - Helpers
 
     private func applyBrush() {
+        // 다른 도구로 전환 시 기존 선택 해제
+        if canvasView.canvas.hasSelection {
+            canvasView.canvas.cancelLasso()
+            canvasView.refreshBuffer()
+        }
+
         var alpha: Float = 1.0
         var width = currentWidth
 
@@ -243,21 +369,32 @@ final class ViewController: UIViewController {
 
         let color = Color(r: currentColor.r, g: currentColor.g,
                           b: currentColor.b, a: alpha)
+        let eraserMode: EraserMode = currentBrushType == .eraser ? currentEraserMode : .stroke
         let config = BrushConfig(brushType: currentBrushType,
-                                 color: color, baseWidth: width)
-        canvasView.engine.setBrush(config: config)
+                                 color: color, baseWidth: width,
+                                 eraserMode: eraserMode)
+        canvasView.canvas.setBrush(config)
+
+        canvasView.isEraserMode = currentBrushType == .eraser
+        canvasView.isLassoMode = isLassoActive
+        if currentBrushType == .eraser {
+            canvasView.eraserRadius = CGFloat(width / 2.0)
+        }
     }
 
     private func updateToolbarState() {
-        let state = canvasView.engine.getState()
-        undoButton.isEnabled = state.canUndo
-        redoButton.isEnabled = state.canRedo
+        undoButton.isEnabled = canvasView.canvas.canUndo
+        redoButton.isEnabled = canvasView.canvas.canRedo
 
         let active = UIColor.systemBlue
         let inactive = UIColor.gray
-        penButton.tintColor = currentBrushType == .pen ? active : inactive
-        highlighterButton.tintColor = currentBrushType == .highlighter ? active : inactive
-        eraserButton.tintColor = currentBrushType == .eraser ? active : inactive
+        penButton.tintColor = (!isLassoActive && currentBrushType == .pen) ? active : inactive
+        highlighterButton.tintColor = (!isLassoActive && currentBrushType == .highlighter) ? active : inactive
+        eraserButton.tintColor = (!isLassoActive && currentBrushType == .eraser) ? active : inactive
+        lassoButton.tintColor = isLassoActive ? active : inactive
+
+        lassoDeleteButton.isEnabled = canvasView.canvas.hasSelection
+        lassoCopyButton.isEnabled = canvasView.canvas.hasSelection
     }
 }
 
