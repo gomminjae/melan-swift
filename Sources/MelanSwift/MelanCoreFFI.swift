@@ -12,7 +12,7 @@ import Foundation
 #endif
 
 private extension RustBuffer {
-    // Allocate a new buffer, copying the contents of a `UInt8` array.
+    /// Allocate a new buffer, copying the contents of a `UInt8` array.
     init(bytes: [UInt8]) {
         let rbuf = bytes.withUnsafeBufferPointer { ptr in
             RustBuffer.from(ptr)
@@ -28,8 +28,8 @@ private extension RustBuffer {
         try! rustCall { ffi_melan_ffi_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
     }
 
-    // Frees the buffer in place.
-    // The buffer must not be used after this is called.
+    /// Frees the buffer in place.
+    /// The buffer must not be used after this is called.
     func deallocate() {
         try! rustCall { ffi_melan_ffi_rustbuffer_free(self, $0) }
     }
@@ -76,9 +76,9 @@ private func createReader(data: Data) -> (data: Data, offset: Data.Index) {
     (data: data, offset: 0)
 }
 
-// Reads an integer at the current offset, in big-endian order, and advances
-// the offset on success. Throws if reading the integer would move the
-// offset past the end of the buffer.
+/// Reads an integer at the current offset, in big-endian order, and advances
+/// the offset on success. Throws if reading the integer would move the
+/// offset past the end of the buffer.
 private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
     let range = reader.offset ..< reader.offset + MemoryLayout<T>.size
     guard reader.data.count >= range.upperBound else {
@@ -95,8 +95,8 @@ private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: 
     return value.bigEndian
 }
 
-// Reads an arbitrary number of bytes, to be used to read
-// raw bytes, this is useful when lifting strings
+/// Reads an arbitrary number of bytes, to be used to read
+/// raw bytes, this is useful when lifting strings
 private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> [UInt8] {
     let range = reader.offset ..< (reader.offset + count)
     guard reader.data.count >= range.upperBound else {
@@ -110,17 +110,17 @@ private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: 
     return value
 }
 
-// Reads a float at the current offset.
+/// Reads a float at the current offset.
 private func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
     return try Float(bitPattern: readInt(&reader))
 }
 
-// Reads a float at the current offset.
+/// Reads a float at the current offset.
 private func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
     return try Double(bitPattern: readInt(&reader))
 }
 
-// Indicates if the offset has reached the end of the buffer.
+/// Indicates if the offset has reached the end of the buffer.
 private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
     return reader.offset < reader.data.count
 }
@@ -133,14 +133,14 @@ private func createWriter() -> [UInt8] {
     return []
 }
 
-private func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
+private func writeBytes<S: Sequence>(_ writer: inout [UInt8], _ byteArr: S) where S.Element == UInt8 {
     writer.append(contentsOf: byteArr)
 }
 
-// Writes an integer in big-endian order.
-//
-// Warning: make sure what you are trying to write
-// is in the correct type!
+/// Writes an integer in big-endian order.
+///
+/// Warning: make sure what you are trying to write
+/// is in the correct type!
 private func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
     var value = value.bigEndian
     withUnsafeBytes(of: &value) { writer.append(contentsOf: $0) }
@@ -154,8 +154,8 @@ private func writeDouble(_ writer: inout [UInt8], _ value: Double) {
     writeInt(&writer, value.bitPattern)
 }
 
-// Protocol for types that transfer other types across the FFI. This is
-// analogous to the Rust trait of the same name.
+/// Protocol for types that transfer other types across the FFI. This is
+/// analogous to the Rust trait of the same name.
 private protocol FfiConverter {
     associatedtype FfiType
     associatedtype SwiftType
@@ -166,7 +166,7 @@ private protocol FfiConverter {
     static func write(_ value: SwiftType, into buf: inout [UInt8])
 }
 
-// Types conforming to `Primitive` pass themselves directly over the FFI.
+/// Types conforming to `Primitive` pass themselves directly over the FFI.
 private protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType {}
 
 extension FfiConverterPrimitive {
@@ -185,8 +185,8 @@ extension FfiConverterPrimitive {
     }
 }
 
-// Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
-// Used for complex types where it's hard to write a custom lift/lower.
+/// Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
+/// Used for complex types where it's hard to write a custom lift/lower.
 private protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
 
 extension FfiConverterRustBuffer {
@@ -213,8 +213,8 @@ extension FfiConverterRustBuffer {
     }
 }
 
-// An error type for FFI errors. These errors occur at the UniFFI level, not
-// the library level.
+/// An error type for FFI errors. These errors occur at the UniFFI level, not
+/// the library level.
 private enum UniffiInternalError: LocalizedError {
     case bufferOverflow
     case incompleteData
@@ -226,7 +226,7 @@ private enum UniffiInternalError: LocalizedError {
     case unexpectedStaleHandle
     case rustPanic(_ message: String)
 
-    public var errorDescription: String? {
+    var errorDescription: String? {
         switch self {
         case .bufferOverflow: return "Reading the requested value would read past the end of the buffer"
         case .incompleteData: return "The buffer still has data after lifting its containing value"
@@ -402,11 +402,11 @@ private struct FfiConverterUInt32: FfiConverterPrimitive {
     typealias FfiType = UInt32
     typealias SwiftType = UInt32
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
         return try lift(readInt(&buf))
     }
 
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
@@ -418,11 +418,11 @@ private struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
         return try lift(readFloat(&buf))
     }
 
-    public static func write(_ value: Float, into buf: inout [UInt8]) {
+    static func write(_ value: Float, into buf: inout [UInt8]) {
         writeFloat(&buf, lower(value))
     }
 }
@@ -434,11 +434,11 @@ private struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
         return try lift(readDouble(&buf))
     }
 
-    public static func write(_ value: Double, into buf: inout [UInt8]) {
+    static func write(_ value: Double, into buf: inout [UInt8]) {
         writeDouble(&buf, lower(value))
     }
 }
@@ -450,19 +450,19 @@ private struct FfiConverterBool: FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
 
-    public static func lift(_ value: Int8) throws -> Bool {
+    static func lift(_ value: Int8) throws -> Bool {
         return value != 0
     }
 
-    public static func lower(_ value: Bool) -> Int8 {
+    static func lower(_ value: Bool) -> Int8 {
         return value ? 1 : 0
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
         return try lift(readInt(&buf))
     }
 
-    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+    static func write(_ value: Bool, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
@@ -474,7 +474,7 @@ private struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
 
-    public static func lift(_ value: RustBuffer) throws -> String {
+    static func lift(_ value: RustBuffer) throws -> String {
         defer {
             value.deallocate()
         }
@@ -485,7 +485,7 @@ private struct FfiConverterString: FfiConverter {
         return String(bytes: bytes, encoding: String.Encoding.utf8)!
     }
 
-    public static func lower(_ value: String) -> RustBuffer {
+    static func lower(_ value: String) -> RustBuffer {
         return value.utf8CString.withUnsafeBufferPointer { ptr in
             // The swift string gives us int8_t, we want uint8_t.
             ptr.withMemoryRebound(to: UInt8.self) { ptr in
@@ -496,12 +496,12 @@ private struct FfiConverterString: FfiConverter {
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
         return try String(bytes: readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
     }
 
-    public static func write(_ value: String, into buf: inout [UInt8]) {
+    static func write(_ value: String, into buf: inout [UInt8]) {
         let len = Int32(value.utf8.count)
         writeInt(&buf, len)
         writeBytes(&buf, value.utf8)
@@ -514,12 +514,12 @@ private struct FfiConverterString: FfiConverter {
 private struct FfiConverterData: FfiConverterRustBuffer {
     typealias SwiftType = Data
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
         let len: Int32 = try readInt(&buf)
         return try Data(readBytes(&buf, count: Int(len)))
     }
 
-    public static func write(_ value: Data, into buf: inout [UInt8]) {
+    static func write(_ value: Data, into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         writeBytes(&buf, value)
@@ -527,35 +527,17 @@ private struct FfiConverterData: FfiConverterRustBuffer {
 }
 
 public protocol MelanEngineProtocol: AnyObject {
-    func addLassoPoint(x: Double, y: Double) -> [RenderCommand]
-
     func addPoint(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand]
-
-    func beginLasso(x: Double, y: Double) -> [RenderCommand]
-
-    func beginLassoDrag(x: Double, y: Double) -> [RenderCommand]
 
     func beginStroke(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand]
 
-    func cancelLasso() -> [RenderCommand]
-
     func clearAll() -> [RenderCommand]
-
-    func endLasso() -> [RenderCommand]
-
-    func endLassoDrag() -> [RenderCommand]
 
     func endStroke() -> [RenderCommand]
 
     func fullRender() -> [RenderCommand]
 
     func getState() -> EngineState
-
-    func hasSelection() -> Bool
-
-    func lassoDelete() -> [RenderCommand]
-
-    func lassoDuplicate() -> [RenderCommand]
 
     func load(data: Data) throws
 
@@ -571,8 +553,6 @@ public protocol MelanEngineProtocol: AnyObject {
 
     func undo() -> [RenderCommand]
 
-    func updateLassoDrag(x: Double, y: Double) -> [RenderCommand]
-
     func zoom(factor: Double, focalX: Double, focalY: Double) -> [RenderCommand]
 }
 
@@ -581,7 +561,7 @@ open class MelanEngine:
 {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    // Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
     #if swift(>=5.8)
         @_documentation(visibility: private)
     #endif
@@ -635,16 +615,7 @@ open class MelanEngine:
 
     public static func newA4() -> MelanEngine {
         return try! FfiConverterTypeMelanEngine.lift(try! rustCall {
-            uniffi_melan_ffi_fn_constructor_melanengine_new_a4($0
-            )
-        })
-    }
-
-    open func addLassoPoint(x: Double, y: Double) -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_add_lasso_point(self.uniffiClonePointer(),
-                                                                   FfiConverterDouble.lower(x),
-                                                                   FfiConverterDouble.lower(y), $0)
+            uniffi_melan_ffi_fn_constructor_melanengine_new_a4($0)
         })
     }
 
@@ -658,22 +629,6 @@ open class MelanEngine:
         })
     }
 
-    open func beginLasso(x: Double, y: Double) -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_begin_lasso(self.uniffiClonePointer(),
-                                                               FfiConverterDouble.lower(x),
-                                                               FfiConverterDouble.lower(y), $0)
-        })
-    }
-
-    open func beginLassoDrag(x: Double, y: Double) -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_begin_lasso_drag(self.uniffiClonePointer(),
-                                                                    FfiConverterDouble.lower(x),
-                                                                    FfiConverterDouble.lower(y), $0)
-        })
-    }
-
     open func beginStroke(x: Double, y: Double, pressure: Double, timestamp: Double) -> [RenderCommand] {
         return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
             uniffi_melan_ffi_fn_method_melanengine_begin_stroke(self.uniffiClonePointer(),
@@ -684,27 +639,9 @@ open class MelanEngine:
         })
     }
 
-    open func cancelLasso() -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_cancel_lasso(self.uniffiClonePointer(), $0)
-        })
-    }
-
     open func clearAll() -> [RenderCommand] {
         return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
             uniffi_melan_ffi_fn_method_melanengine_clear_all(self.uniffiClonePointer(), $0)
-        })
-    }
-
-    open func endLasso() -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_end_lasso(self.uniffiClonePointer(), $0)
-        })
-    }
-
-    open func endLassoDrag() -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_end_lasso_drag(self.uniffiClonePointer(), $0)
         })
     }
 
@@ -726,28 +663,11 @@ open class MelanEngine:
         })
     }
 
-    open func hasSelection() -> Bool {
-        return try! FfiConverterBool.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_has_selection(self.uniffiClonePointer(), $0)
-        })
-    }
-
-    open func lassoDelete() -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_lasso_delete(self.uniffiClonePointer(), $0)
-        })
-    }
-
-    open func lassoDuplicate() -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_lasso_duplicate(self.uniffiClonePointer(), $0)
-        })
-    }
-
-    open func load(data: Data) throws { try rustCallWithError(FfiConverterTypeMelanCoreError.lift) {
-        uniffi_melan_ffi_fn_method_melanengine_load(self.uniffiClonePointer(),
-                                                    FfiConverterData.lower(data), $0)
-    }
+    open func load(data: Data) throws {
+        try rustCallWithError(FfiConverterTypeMelanCoreError.lift) {
+            uniffi_melan_ffi_fn_method_melanengine_load(self.uniffiClonePointer(),
+                                                        FfiConverterData.lower(data), $0)
+        }
     }
 
     open func pan(dx: Double, dy: Double) -> [RenderCommand] {
@@ -777,23 +697,16 @@ open class MelanEngine:
         })
     }
 
-    open func setBrush(config: BrushConfig) { try! rustCall {
-        uniffi_melan_ffi_fn_method_melanengine_set_brush(self.uniffiClonePointer(),
-                                                         FfiConverterTypeBrushConfig.lower(config), $0)
-    }
+    open func setBrush(config: BrushConfig) {
+        try! rustCall {
+            uniffi_melan_ffi_fn_method_melanengine_set_brush(self.uniffiClonePointer(),
+                                                             FfiConverterTypeBrushConfig.lower(config), $0)
+        }
     }
 
     open func undo() -> [RenderCommand] {
         return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
             uniffi_melan_ffi_fn_method_melanengine_undo(self.uniffiClonePointer(), $0)
-        })
-    }
-
-    open func updateLassoDrag(x: Double, y: Double) -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_melan_ffi_fn_method_melanengine_update_lasso_drag(self.uniffiClonePointer(),
-                                                                     FfiConverterDouble.lower(x),
-                                                                     FfiConverterDouble.lower(y), $0)
         })
     }
 
@@ -858,15 +771,13 @@ public struct BrushConfig {
     public var brushType: BrushType
     public var color: Color
     public var baseWidth: Double
-    public var eraserMode: EraserMode
 
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(brushType: BrushType, color: Color, baseWidth: Double, eraserMode: EraserMode) {
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
+    public init(brushType: BrushType, color: Color, baseWidth: Double) {
         self.brushType = brushType
         self.color = color
         self.baseWidth = baseWidth
-        self.eraserMode = eraserMode
     }
 }
 
@@ -881,9 +792,6 @@ extension BrushConfig: Equatable, Hashable {
         if lhs.baseWidth != rhs.baseWidth {
             return false
         }
-        if lhs.eraserMode != rhs.eraserMode {
-            return false
-        }
         return true
     }
 
@@ -891,7 +799,6 @@ extension BrushConfig: Equatable, Hashable {
         hasher.combine(brushType)
         hasher.combine(color)
         hasher.combine(baseWidth)
-        hasher.combine(eraserMode)
     }
 }
 
@@ -904,8 +811,7 @@ public struct FfiConverterTypeBrushConfig: FfiConverterRustBuffer {
             try BrushConfig(
                 brushType: FfiConverterTypeBrushType.read(from: &buf),
                 color: FfiConverterTypeColor.read(from: &buf),
-                baseWidth: FfiConverterDouble.read(from: &buf),
-                eraserMode: FfiConverterTypeEraserMode.read(from: &buf)
+                baseWidth: FfiConverterDouble.read(from: &buf)
             )
     }
 
@@ -913,7 +819,6 @@ public struct FfiConverterTypeBrushConfig: FfiConverterRustBuffer {
         FfiConverterTypeBrushType.write(value.brushType, into: &buf)
         FfiConverterTypeColor.write(value.color, into: &buf)
         FfiConverterDouble.write(value.baseWidth, into: &buf)
-        FfiConverterTypeEraserMode.write(value.eraserMode, into: &buf)
     }
 }
 
@@ -935,8 +840,8 @@ public struct CanvasSize {
     public var width: Double
     public var height: Double
 
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
     public init(width: Double, height: Double) {
         self.width = width
         self.height = height
@@ -998,8 +903,8 @@ public struct Color {
     public var b: Float
     public var a: Float
 
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
     public init(r: Float, g: Float, b: Float, a: Float) {
         self.r = r
         self.g = g
@@ -1077,15 +982,10 @@ public struct EngineState {
     public var offsetX: Double
     public var offsetY: Double
     public var activeLayerId: String
-    public var hasSelection: Bool
-    public var selectionMinX: Double
-    public var selectionMinY: Double
-    public var selectionMaxX: Double
-    public var selectionMaxY: Double
 
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(strokeCount: UInt32, canUndo: Bool, canRedo: Bool, scale: Double, offsetX: Double, offsetY: Double, activeLayerId: String, hasSelection: Bool, selectionMinX: Double, selectionMinY: Double, selectionMaxX: Double, selectionMaxY: Double) {
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
+    public init(strokeCount: UInt32, canUndo: Bool, canRedo: Bool, scale: Double, offsetX: Double, offsetY: Double, activeLayerId: String) {
         self.strokeCount = strokeCount
         self.canUndo = canUndo
         self.canRedo = canRedo
@@ -1093,11 +993,6 @@ public struct EngineState {
         self.offsetX = offsetX
         self.offsetY = offsetY
         self.activeLayerId = activeLayerId
-        self.hasSelection = hasSelection
-        self.selectionMinX = selectionMinX
-        self.selectionMinY = selectionMinY
-        self.selectionMaxX = selectionMaxX
-        self.selectionMaxY = selectionMaxY
     }
 }
 
@@ -1124,21 +1019,6 @@ extension EngineState: Equatable, Hashable {
         if lhs.activeLayerId != rhs.activeLayerId {
             return false
         }
-        if lhs.hasSelection != rhs.hasSelection {
-            return false
-        }
-        if lhs.selectionMinX != rhs.selectionMinX {
-            return false
-        }
-        if lhs.selectionMinY != rhs.selectionMinY {
-            return false
-        }
-        if lhs.selectionMaxX != rhs.selectionMaxX {
-            return false
-        }
-        if lhs.selectionMaxY != rhs.selectionMaxY {
-            return false
-        }
         return true
     }
 
@@ -1150,11 +1030,6 @@ extension EngineState: Equatable, Hashable {
         hasher.combine(offsetX)
         hasher.combine(offsetY)
         hasher.combine(activeLayerId)
-        hasher.combine(hasSelection)
-        hasher.combine(selectionMinX)
-        hasher.combine(selectionMinY)
-        hasher.combine(selectionMaxX)
-        hasher.combine(selectionMaxY)
     }
 }
 
@@ -1171,12 +1046,7 @@ public struct FfiConverterTypeEngineState: FfiConverterRustBuffer {
                 scale: FfiConverterDouble.read(from: &buf),
                 offsetX: FfiConverterDouble.read(from: &buf),
                 offsetY: FfiConverterDouble.read(from: &buf),
-                activeLayerId: FfiConverterString.read(from: &buf),
-                hasSelection: FfiConverterBool.read(from: &buf),
-                selectionMinX: FfiConverterDouble.read(from: &buf),
-                selectionMinY: FfiConverterDouble.read(from: &buf),
-                selectionMaxX: FfiConverterDouble.read(from: &buf),
-                selectionMaxY: FfiConverterDouble.read(from: &buf)
+                activeLayerId: FfiConverterString.read(from: &buf)
             )
     }
 
@@ -1188,11 +1058,6 @@ public struct FfiConverterTypeEngineState: FfiConverterRustBuffer {
         FfiConverterDouble.write(value.offsetX, into: &buf)
         FfiConverterDouble.write(value.offsetY, into: &buf)
         FfiConverterString.write(value.activeLayerId, into: &buf)
-        FfiConverterBool.write(value.hasSelection, into: &buf)
-        FfiConverterDouble.write(value.selectionMinX, into: &buf)
-        FfiConverterDouble.write(value.selectionMinY, into: &buf)
-        FfiConverterDouble.write(value.selectionMaxX, into: &buf)
-        FfiConverterDouble.write(value.selectionMaxY, into: &buf)
     }
 }
 
@@ -1210,67 +1075,6 @@ public func FfiConverterTypeEngineState_lower(_ value: EngineState) -> RustBuffe
     return FfiConverterTypeEngineState.lower(value)
 }
 
-public struct FfiPoint {
-    public var x: Double
-    public var y: Double
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(x: Double, y: Double) {
-        self.x = x
-        self.y = y
-    }
-}
-
-extension FfiPoint: Equatable, Hashable {
-    public static func == (lhs: FfiPoint, rhs: FfiPoint) -> Bool {
-        if lhs.x != rhs.x {
-            return false
-        }
-        if lhs.y != rhs.y {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(x)
-        hasher.combine(y)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFfiPoint: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiPoint {
-        return
-            try FfiPoint(
-                x: FfiConverterDouble.read(from: &buf),
-                y: FfiConverterDouble.read(from: &buf)
-            )
-    }
-
-    public static func write(_ value: FfiPoint, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.x, into: &buf)
-        FfiConverterDouble.write(value.y, into: &buf)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFfiPoint_lift(_ buf: RustBuffer) throws -> FfiPoint {
-    return try FfiConverterTypeFfiPoint.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFfiPoint_lower(_ value: FfiPoint) -> RustBuffer {
-    return FfiConverterTypeFfiPoint.lower(value)
-}
-
 public struct PathSegment {
     public var p0X: Double
     public var p0Y: Double
@@ -1283,8 +1087,8 @@ public struct PathSegment {
     public var startWidth: Double
     public var endWidth: Double
 
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
     public init(p0X: Double, p0Y: Double, cp1X: Double, cp1Y: Double, cp2X: Double, cp2Y: Double, p3X: Double, p3Y: Double, startWidth: Double, endWidth: Double) {
         self.p0X = p0X
         self.p0Y = p0Y
@@ -1454,61 +1258,8 @@ public func FfiConverterTypeBrushType_lower(_ value: BrushType) -> RustBuffer {
 
 extension BrushType: Equatable, Hashable {}
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum EraserMode {
-    case stroke
-    case partial
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeEraserMode: FfiConverterRustBuffer {
-    typealias SwiftType = EraserMode
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EraserMode {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        case 1: return .stroke
-
-        case 2: return .partial
-
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: EraserMode, into buf: inout [UInt8]) {
-        switch value {
-        case .stroke:
-            writeInt(&buf, Int32(1))
-
-        case .partial:
-            writeInt(&buf, Int32(2))
-        }
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeEraserMode_lift(_ buf: RustBuffer) throws -> EraserMode {
-    return try FfiConverterTypeEraserMode.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeEraserMode_lower(_ value: EraserMode) -> RustBuffer {
-    return FfiConverterTypeEraserMode.lower(value)
-}
-
-extension EraserMode: Equatable, Hashable {}
-
 public enum MelanCoreError {
-    case FormatError(msg: String
-    )
+    case FormatError(msg: String)
 }
 
 #if swift(>=5.8)
@@ -1554,8 +1305,6 @@ public enum RenderCommand {
     case restoreState
     case setTransform(scale: Double, translateX: Double, translateY: Double)
     case drawVariableWidthPath(segments: [PathSegment], r: Float, g: Float, b: Float, a: Float, isEraser: Bool)
-    case drawClosedPath(points: [FfiPoint], r: Float, g: Float, b: Float, a: Float, lineWidth: Double)
-    case drawRect(minX: Double, minY: Double, maxX: Double, maxY: Double, r: Float, g: Float, b: Float, a: Float, lineWidth: Double)
 }
 
 #if swift(>=5.8)
@@ -1576,10 +1325,6 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         case 4: return try .setTransform(scale: FfiConverterDouble.read(from: &buf), translateX: FfiConverterDouble.read(from: &buf), translateY: FfiConverterDouble.read(from: &buf))
 
         case 5: return try .drawVariableWidthPath(segments: FfiConverterSequenceTypePathSegment.read(from: &buf), r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf), isEraser: FfiConverterBool.read(from: &buf))
-
-        case 6: return try .drawClosedPath(points: FfiConverterSequenceTypeFfiPoint.read(from: &buf), r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf), lineWidth: FfiConverterDouble.read(from: &buf))
-
-        case 7: return try .drawRect(minX: FfiConverterDouble.read(from: &buf), minY: FfiConverterDouble.read(from: &buf), maxX: FfiConverterDouble.read(from: &buf), maxY: FfiConverterDouble.read(from: &buf), r: FfiConverterFloat.read(from: &buf), g: FfiConverterFloat.read(from: &buf), b: FfiConverterFloat.read(from: &buf), a: FfiConverterFloat.read(from: &buf), lineWidth: FfiConverterDouble.read(from: &buf))
 
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1614,27 +1359,6 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(b, into: &buf)
             FfiConverterFloat.write(a, into: &buf)
             FfiConverterBool.write(isEraser, into: &buf)
-
-        case let .drawClosedPath(points, r, g, b, a, lineWidth):
-            writeInt(&buf, Int32(6))
-            FfiConverterSequenceTypeFfiPoint.write(points, into: &buf)
-            FfiConverterFloat.write(r, into: &buf)
-            FfiConverterFloat.write(g, into: &buf)
-            FfiConverterFloat.write(b, into: &buf)
-            FfiConverterFloat.write(a, into: &buf)
-            FfiConverterDouble.write(lineWidth, into: &buf)
-
-        case let .drawRect(minX, minY, maxX, maxY, r, g, b, a, lineWidth):
-            writeInt(&buf, Int32(7))
-            FfiConverterDouble.write(minX, into: &buf)
-            FfiConverterDouble.write(minY, into: &buf)
-            FfiConverterDouble.write(maxX, into: &buf)
-            FfiConverterDouble.write(maxY, into: &buf)
-            FfiConverterFloat.write(r, into: &buf)
-            FfiConverterFloat.write(g, into: &buf)
-            FfiConverterFloat.write(b, into: &buf)
-            FfiConverterFloat.write(a, into: &buf)
-            FfiConverterDouble.write(lineWidth, into: &buf)
         }
     }
 }
@@ -1710,35 +1434,10 @@ extension SaveFormat: Equatable, Hashable {}
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeFfiPoint: FfiConverterRustBuffer {
-    typealias SwiftType = [FfiPoint]
-
-    public static func write(_ value: [FfiPoint], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeFfiPoint.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiPoint] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [FfiPoint]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeFfiPoint.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
 private struct FfiConverterSequenceTypePathSegment: FfiConverterRustBuffer {
     typealias SwiftType = [PathSegment]
 
-    public static func write(_ value: [PathSegment], into buf: inout [UInt8]) {
+    static func write(_ value: [PathSegment], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
@@ -1746,7 +1445,7 @@ private struct FfiConverterSequenceTypePathSegment: FfiConverterRustBuffer {
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PathSegment] {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PathSegment] {
         let len: Int32 = try readInt(&buf)
         var seq = [PathSegment]()
         seq.reserveCapacity(Int(len))
@@ -1763,7 +1462,7 @@ private struct FfiConverterSequenceTypePathSegment: FfiConverterRustBuffer {
 private struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
     typealias SwiftType = [RenderCommand]
 
-    public static func write(_ value: [RenderCommand], into buf: inout [UInt8]) {
+    static func write(_ value: [RenderCommand], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
@@ -1771,7 +1470,7 @@ private struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RenderCommand] {
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RenderCommand] {
         let len: Int32 = try readInt(&buf)
         var seq = [RenderCommand]()
         seq.reserveCapacity(Int(len))
@@ -1788,8 +1487,8 @@ private enum InitializationResult {
     case apiChecksumMismatch
 }
 
-// Use a global variable to perform the versioning checks. Swift ensures that
-// the code inside is only computed once.
+/// Use a global variable to perform the versioning checks. Swift ensures that
+/// the code inside is only computed once.
 private var initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
     let bindings_contract_version = 26
@@ -1798,31 +1497,13 @@ private var initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melanengine_add_lasso_point() != 49833 {
-        return InitializationResult.apiChecksumMismatch
-    }
     if uniffi_melan_ffi_checksum_method_melanengine_add_point() != 21848 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_begin_lasso() != 27637 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_begin_lasso_drag() != 4230 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_melan_ffi_checksum_method_melanengine_begin_stroke() != 21472 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_melan_ffi_checksum_method_melanengine_cancel_lasso() != 27679 {
-        return InitializationResult.apiChecksumMismatch
-    }
     if uniffi_melan_ffi_checksum_method_melanengine_clear_all() != 12050 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_end_lasso() != 31517 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_end_lasso_drag() != 25809 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_melan_ffi_checksum_method_melanengine_end_stroke() != 59850 {
@@ -1832,15 +1513,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_melan_ffi_checksum_method_melanengine_get_state() != 8749 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_has_selection() != 1165 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_lasso_delete() != 43208 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_lasso_duplicate() != 46312 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_melan_ffi_checksum_method_melanengine_load() != 30579 {
@@ -1862,9 +1534,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_melan_ffi_checksum_method_melanengine_undo() != 51935 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_melan_ffi_checksum_method_melanengine_update_lasso_drag() != 52089 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_melan_ffi_checksum_method_melanengine_zoom() != 47544 {
